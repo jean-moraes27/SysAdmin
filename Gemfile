@@ -26,7 +26,12 @@ gem 'rails_admin'
 gem 'devise'
 gem 'cancancan'
 gem 'carrierwave'
-gem 'rails_admin_rollincode', :git => 'git@github.com:jean-moraes27/rollincode_custom.git'  
+gem 'rails_admin_rollincode', :git => 'git@github.com:jean-moraes27/rollincode_custom.git'
+
+# Gem para gerar os pdfs
+gem 'prawn-rails'
+# Gem para gerar os gráficos
+gem 'gruff'
 
 # Use Active Storage variant
 # gem 'image_processing', '~> 1.2'
