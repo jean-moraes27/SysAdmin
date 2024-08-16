@@ -1,0 +1,62 @@
+name: Monitor Pull Requests
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'  # Executa a cada 5 minutos
+  workflow_dispatch: # Permite rodar manualmente
+
+jobs:
+  monitor_pull_requests:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Verificar Pull Requests abertas
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const pullRequests = await github.rest.pulls.list({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            state: 'open'
+          });
+
+          const now = new Date();
+          const staleDuration = 5 * 60 * 1000; // 5 minutos em milissegundos
+          const slackWebhookUrl = process.env.SLACK_WEBHOOK_URL;
+
+          for (const pr of pullRequests.data) {
+            const createdAt = new Date(pr.created_at);
+            if ((now - createdAt) > staleDuration) {
+              const prUrl = pr.html_url;
+              const prTitle = pr.title;
+
+              // Enviar notificação para o Slack
+              await github.rest.actions.createWorkflowDispatch({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: context.ref,
+                inputs: {
+                  webhook_url: slackWebhookUrl,
+                  message: `Pull Request aberto há mais de 5 minutos: <${prUrl}|${prTitle}>`
+                }
+              });
+
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                labels: ['stale']
+              });
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                body: 'Este pull request está aberto há mais de 5 minutos. Notificação enviada ao Slack.'
+              });
+            }
+          }
+    - name: Send Slack Notification
+      run: |
+        curl -X POST -H 'Content-type: application/json' --data '{"text":"${{ github.event.inputs.message }}"}' ${{ github.event.inputs.webhook_url }}
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
